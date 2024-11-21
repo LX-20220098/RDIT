@@ -1,0 +1,138 @@
+clear;clc;close all
+lambda=0.532;
+n_m=1.510;
+ccd_size=3.45;
+sample_size=ccd_size/100;
+u0_x2=u0_x1-1024;
+u0_y2=u0_y1-1024;
+u0_x=u0_x2-u0_x2(1);
+u0_y=u0_y2-u0_y2(1);
+k0=2*pi/lambda;
+k0_x=(2*pi/(sample_size*2048))*u0_x;
+k0_y=(2*pi/(sample_size*2048))*u0_y;
+k0_z=sqrt((n_m*k0)^2-k0_x.^2-k0_y.^2);
+k0_z=round(k0_z);
+zp_fourier3D=2048;
+zp1_fourier3D=2048;
+rytov=zeros(zp_fourier3D,zp1_fourier3D,1000,'single');
+count=zeros(zp_fourier3D,zp1_fourier3D,1000,'single');
+kvector_sample=2*pi/(sample_size*2048);
+for num=1:200
+    picname=[num2str(num),'_phas.mat'];
+    picname_amplitude=[num2str(num),'_amplitude.mat'];
+    dir_mat_template='F:\tomography\nuc_1_1-template\';
+    dir_mat_nan='F:\tomography\nuc_1_1-nan\';
+    mat_template_phas=load([dir_mat_template picname]);
+    mat_template_amplitude=load([dir_mat_template picname_amplitude]);
+    mat_nan_phas=load([dir_mat_nan picname]);
+    mat_nan_amplitude=load([dir_mat_nan picname_amplitude]);
+    phas_diff=mat_template_phas.phas_template-mat_nan_phas.phas_nan;
+    unphas_template=zeros(M+2,N+2);
+    unphas_template(2:M+1,2:N+1)=phas_diff;
+    for k1=2:N+1
+        unphas_template(1,k1)=unphas_template(3,k1);
+        unphas_template(M+2,k1)=unphas_template(M,k1);
+    end
+    for k1=2:M+1
+        unphas_template(k1,1)=unphas_template(k1,3);
+        unphas_template(k1,N+2)=unphas_template(k1,N);
+    end
+    diffx_template=zeros(M+1,N);
+    for i1=1:M+1
+        for j1=1:N
+            diffx_template(i1,j1)=unphas_template(i1+1,j1+1)-unphas_template(i1,j1+1);
+            if diffx_template(i1,j1)<=-pi
+                diffx_template(i1,j1)=diffx_template(i1,j1)+2*pi;
+            end
+            if diffx_template(i1,j1)>pi
+                diffx_template(i1,j1)=diffx_template(i1,j1)-2*pi;
+            end
+        end
+    end
+    diffy_template=zeros(M,N+1);
+    for i2=1:N+1
+        for j2=1:M
+            diffy_template(j2,i2)=unphas_template(j2+1,i2+1)-unphas_template(j2+1,i2);
+            if diffy_template(j2,i2)<=-pi
+                diffy_template(j2,i2)=diffy_template(j2,i2)+2*pi;
+            end
+            if diffy_template(j2,i2)>pi
+                diffy_template(j2,i2)=diffy_template(j2,i2)-2*pi;
+            end
+        end
+    end
+    rou_template=zeros(M,N);
+    for i3=1:M
+        for j3=1:N
+            rou_template(i3,j3)=diffx_template(i3+1,j3)-diffx_template(i3,j3)+diffy_template(i3,j3+1)-diffy_template(i3,j3);
+        end
+    end
+    rou1_template=zeros(M,2*N-2);
+    rou1_template(1:M,1:N)=rou_template;
+    for m=0:M-1
+        for n=N:2*N-3
+            rou1_template(m+1,n+1)=rou_template(m+1,2*N-2-n+1);
+        end
+    end
+    sp_template=fft(rou1_template,[],2);
+    sp1_template=real(sp_template(1:M,1:N));
+    sp2_template=zeros(2*M-2,N);
+    sp2_template(1:M,1:N)=sp1_template;
+    for n=0:N-1
+        for m=M:2*M-3
+            sp2_template(m+1,n+1)=sp1_template(2*M-2-m+1,n+1);
+        end
+    end
+    sp_template=fft(sp2_template);
+    sp1_template=real(sp_template(1:M,1:N));
+    psai_template=zeros(M,N);
+    for i4=1:M
+        for j4=1:N
+            psai_template(i4,j4)=sp1_template(i4,j4)/(2*cos(i4*pi/M)+2*cos(j4*pi/N)-4);
+        end
+    end
+    rou1_template=zeros(M,2*N-2);
+    rou1_template(1:M,1:N)=psai_template;
+    for m=0:M-1
+        for n=N:2*N-3
+            rou1_template(m+1,n+1)=psai_template(m+1,2*N-2-n+1);
+        end
+    end
+    sp_template=ifft(rou1_template,[],2);
+    sp1_template=real(sp_template(1:M,1:N));
+    sp2_template=zeros(2*M-2,N);
+    sp2_template(1:M,1:N)=sp1_template;
+    for n=0:N-1
+        for m=M:2*M-3
+            sp2_template(m+1,n+1)=sp1_template(2*M-2-m+1,n+1);
+        end
+    end
+    sp_template=ifft(sp2_template);
+    sp1_template=real(sp_template(1:M,1:N));
+    sp_diff=sp1_template;
+    rytov_2Dimage=log(mat_template_amplitude.amplitude_template./mat_nan_amplitude.amplitude_nan)+1i.*sp_diff;
+    rytov_2Dfourier=fftshift(fft2(rytov_2Dimage));
+    rytov_2Dfourier=circshift(rytov_2Dfourier,round([u0_x(num) u0_y(num)]));
+    [ky kx]=meshgrid(kvector_sample*((1:2048)-1024));
+    kz=real(sqrt((n_m*k0)^2-kx.^2-ky.^2));
+    ewald=2i.*kz.*rytov_2Dfourier;
+    [xtemp,ytemp]=find(kz>0);
+    Xrange=min(xtemp):max(xtemp);
+    Yrange=min(ytemp):max(ytemp);
+    ewald=ewald(Xrange,Yrange);
+    Kx=kx-k0_x(num);
+    Kx=Kx(Xrange,Yrange);
+    Ky=ky-k0_y(num);
+    Ky=Ky(Xrange,Yrange);
+    Kz=kz-k0_z(num);
+    Kz=Kz(Xrange,Yrange);
+    Kx=round(Kx/kvector_sample+1024);
+    Ky=round(Ky/kvector_sample+1024);
+    Kz=round(Kz/kvector_sample);
+    zp_real3=length(Kx);
+    kvector3D=(Kz-1)*zp_fourier3D*zp1_fourier3D+(Ky-1)*zp1_fourier3D+Kx;
+    kvector3D1=reshape(kvector3D,1,zp_real3*zp_real3);
+    temp=reshape(rytov(kvector3D1),zp_real3,zp_real3);
+    rytov(kvector3D1)=temp+ewald;
+    count(kvector3D1)=count(kvector3D1)+1;
+end
