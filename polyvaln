@@ -1,0 +1,17 @@
+function ypred = polyvaln(polymodel,indepvar)
+[n,p] = size(indepvar);
+if (n == 1) && (size(polymodel.ModelTerms,2)==1)
+  indepvar = indepvar';
+  [n,p] = size(indepvar);
+elseif (size(polymodel.ModelTerms,2)~=p)
+  error 'Size of indepvar array and this model are inconsistent.'
+end
+nt = size(polymodel.ModelTerms,1);
+ypred = zeros(n,1);
+for i = 1:nt
+  t = ones(n,1);
+  for j = 1:p
+    t = t.*indepvar(:,j).^polymodel.ModelTerms(i,j);
+  end
+  ypred = ypred + t*polymodel.Coefficients(i);
+end
