@@ -1,0 +1,13 @@
+function spectrum = New_FFT2( object,delta_x,delta_y,f0x,f0y )
+delta_x=0.00345;
+delta_y=0.00345;
+f0x=0;
+f0y=0;
+[M,N]=size(object);
+m=(0:1/2:M/2-1/2).'*ones(1,N);
+n=ones(M,1)*(0:1/2:N/2-1/2);
+m1=(0:M-1).'*ones(1,N);
+n1=ones(M,1)*(0:N-1);
+U=object.*exp(j*2*pi*(n+m)).*exp(-j*2*pi*((n1-N/2)*delta_x*f0x-(m1-M/2)*delta_y*f0y));
+C=exp(j*2*pi*(n+m))*exp(-j*2*pi*(M/4+N/4));
+spectrum=C.*fft2(U)*delta_x*delta_y;
