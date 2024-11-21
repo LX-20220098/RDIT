@@ -1,0 +1,94 @@
+clear;clc;close all
+xi=[754 ...
+    749 749 749 749 749 749 748 748 748 748 748 747 747 747 747 747 747 747 746 746 746 746 746 ...
+    746 746 746 746 746 746 746 746 746 746 746 746 746 746 747 747 747 747 747 747 747 747 747 ...
+    747 747 748 748 748 748 748 748 749 749 749 749 749 749 749 750 750 750 750 750 750 751 751 ...
+    751 751 751 752 752 752 752 753 753 753 753 754 754 754 754 754 754 755 755 755 755 755 756 ...
+    756 756 756 757 757 757 757 758 758 758 758 758 758 758 758 758 759 759 759 759 759 759 760 ...
+    760 760 760 760 760 760 760 760 761 761 761 761 761 761 761 761 761 761 761 761 761 761 761 ...
+    760 760 760 760 760 760 760 760 760 759 759 759 759 759 759 759 759 759 758 758 758 758 758 ...
+    758 758 757 757 757 757 756 756 756 756 756 756 756 755 755 755 754 754 754 754 753 753 753 ...
+    753 752 752 752 752 752 751 751 751 751 750 750 750 750 750 750];
+yi=[1347 ... 
+    1341 1341 1341 1341 1341 1342 1342 1342 1342 1342 1342 1343 1343 1343 1343 1344 1344 1344 1344 1344 1345 1345 1345 ... 
+    1345 1346 1346 1346 1346 1346 1347 1347 1347 1348 1348 1348 1348 1349 1349 1349 1349 1349 1350 1350 1350 1350 1350 ...
+    1351 1351 1351 1351 1351 1352 1352 1352 1352 1352 1352 1353 1353 1353 1353 1353 1353 1354 1354 1354 1354 1354 1354 ...
+    1354 1354 1354 1354 1354 1354 1354 1354 1354 1354 1354 1354 1354 1355 1355 1355 1355 1355 1355 1355 1355 1355 1354 ...
+    1354 1354 1354 1354 1354 1354 1353 1353 1353 1353 1353 1353 1353 1353 1352 1352 1352 1352 1352 1352 1352 1352 1352 ...
+    1351 1351 1351 1351 1350 1350 1350 1350 1349 1349 1349 1349 1349 1348 1348 1348 1347 1347 1347 1347 1347 1346 1346 ...
+    1346 1346 1345 1345 1345 1345 1345 1344 1344 1344 1344 1344 1343 1343 1342 1342 1342 1341 1341 1341 1341 1341 1341 ...
+    1340 1340 1340 1340 1340 1340 1340 1340 1340 1339 1339 1339 1339 1339 1339 1339 1339 1339 1339 1339 1339 1339 1339 ...
+    1339 1339 1340 1340 1340 1340 1340 1340 1340 1340 1340 1340 1340 1340 1341 1341];
+for i=1:200
+    G_template_0=double(imread('F:\normal cells and cancer cells\3.tif',i));
+    G_template=G_template_0(:,1224-1024:1224+1023);
+    G_nan_0=double(imread('F:\normal cells and cancer cells\3-1.tif',i));
+    G_nan=G_nan_0(:,1224-1024:1224+1023);
+    ii=i+1;
+    [M,N]=size(G_template);
+    lamda=0.532;
+    k=2*pi/lamda;
+    ZI=0.00001;
+    dx=3.45;
+    dy=3.45;
+    L=dx*2048;
+    L1=dy*2048;
+    dxI=lamda*ZI/L;
+    dyI=lamda*ZI/L1;
+    x=-(N/2)+1:1:N/2;
+    y=-(M/2)+1:1:M/2;
+    [X,Y]=meshgrid(x,y);
+    R=exp(j*k*((cos(pi/2)).*(dx.*Y)+(cos(pi/2)).*(dy.*X)));
+    O_template=fft2(R.*G_template).*exp(j*k*ZI.*sqrt(1-(lamda.*Y*(1/L)).^2-(lamda.*X*(1/L1)).^2));
+    O_nan=fft2(R.*G_nan).*exp(j*k*ZI.*sqrt(1-(lamda.*Y*(1/L)).^2-(lamda.*X*(1/L1)).^2));
+    H_template=fftshift(O_template);
+    H_nan=fftshift(O_nan);
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    figure(1),imshow(abs(H_template)/(3*10^6));
+    Lx=1247;
+    Ly=828;
+    spectrum_template1=zeros(M,N);
+    for lx1=1:1:M
+        for ly1=1:1:N
+            if (lx1-xi(ii))^2+(ly1-yi(ii))^2<100^2
+                spectrum_template1(lx1+(1024-xi(ii)),ly1+(1024-yi(ii)))=H_template(lx1,ly1);
+            end
+        end
+    end
+    spectrum_template=spectrum_template1;
+    figure(2),imshow(spectrum_template1);
+    figure(3),imshow(spectrum_template);
+    spectrum_nan1=zeros(M,N);
+    for lx2=1:1:M
+        for ly2=1:1:N
+            if (lx2-xi(ii))^2+(ly2-yi(ii))^2<100^2
+                spectrum_nan1(lx2+(1024-xi(ii)),ly2+(1024-yi(ii)))=H_nan(lx2,ly2);
+            end
+        end
+    end
+    spectrum_nan=spectrum_nan1;
+    H2_template=ifftshift(spectrum_template);
+    H2_nan=ifftshift(spectrum_nan);
+    H3_template=ifft2(H2_template);
+    H3_template=single(H3_template);
+    H3_nan=ifft2(H2_nan);
+    H3_nan=single(H3_nan);
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    amplitude_template=abs(H3_template);
+    amplitude_nan=abs(H3_nan);
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    name=[num2str(ii),'_amplitude.mat'];
+    path_temple='F:\tomography\nuc_1_1-template\';
+    path_nan='F:\tomography\nuc_1_1-nan\';
+    save([path_temple name],'amplitude_template');
+    save([path_nan name],'amplitude_nan');
+    figure(4); imshow(amplitude_template,[])
+    figure(5); imshow(amplitude_nan,[])
+    phas_template=angle(H3_template);
+    phas_nan=angle(H3_nan);
+    name1=[num2str(ii),'_phas.mat'];
+    save([path_temple name1],'phas_template');
+    save([path_nan name1],'phas_nan');
+    figure(6); imshow(phas_template,[])
+    figure(7); imshow(phas_nan,[])
+end
